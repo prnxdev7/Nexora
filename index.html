@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nexora — Universal Chat (Mobile First)</title>
+<link rel="icon" href="data:,">
+<style>
+  /* Mobile-first Chat UI */
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --accent:#7c3aed;
+    --muted:#94a3b8;
+    --bubble:#0b1227;
+    --me:#163d2e;
+    --glass: rgba(255,255,255,0.02);
+    --radius:14px;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#071023 0%, #071227 100%);color:#e6eef6}
+  .app{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    padding:14px;
+    box-sizing:border-box;
+    max-width:920px;
+    margin:0 auto;
+  }
+
+  /* Top bar */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    box-shadow: 0 6px 20px rgba(2,6,23,0.6);
+    backdrop-filter: blur(6px);
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{
+    width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#3b82f6);
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:18px;box-shadow:0 6px 18px rgba(124,58,237,0.18)
+  }
+  .title{font-weight:600;font-size:16px}
+  .sub{font-size:12px;color:var(--muted)}
+
+  .controls{display:flex;align-items:center;gap:8px}
+
+  button.btn{
+    background:transparent;border:1px solid rgba(255,255,255,0.06);
+    color:inherit;padding:8px 12px;border-radius:10px;font-weight:600;
+    display:inline-flex;gap:8px;align-items:center;cursor:pointer;
+  }
+  img.avatar{width:36px;height:36px;border-radius:10px;object-fit:cover;border:1px solid rgba(255,255,255,0.06)}
+
+  /* Chat container */
+  .chat-wrap{
+    display:flex;
+    gap:12px;
+    align-items:flex-end;
+    flex-direction:column;
+    flex:1 1 auto;
+    min-height:320px;
+  }
+  .messages{
+    width:100%;
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+    border-radius:12px;padding:12px;overflow:auto;
+    display:flex;flex-direction:column;gap:8px;box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    max-height:65vh;
+  }
+  .msg{
+    display:flex;gap:8px;align-items:flex-end;
+    max-width:85%;
+    padding:8px 10px;border-radius:12px;
+    background:var(--bubble);
+    border:1px solid rgba(255,255,255,0.02);
+    box-shadow: 0 6px 18px rgba(2,6,23,0.4);
+    animation: fadeIn 220ms ease;
+  }
+  @keyframes fadeIn { from {opacity:0; transform: translateY(8px)} to {opacity:1; transform:none} }
+
+  .msg.me{ margin-left:auto; background:linear-gradient(135deg, rgba(124,58,237,0.14), rgba(59,130,246,0.06)); border-left:4px solid var(--accent) }
+  .msg .meta{display:flex;flex-direction:column;gap:4px}
+  .msg .who{font-weight:700;font-size:13px}
+  .msg .txt{font-size:14px;color:#e9f2ff;line-height:1.35;word-break:break-word}
+  .time{font-size:11px;color:var(--muted);margin-left:6px}
+
+  /* Input area */
+  .composer{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:10px;
+    background:var(--glass);
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.02);
+  }
+  .composer input[type=text]{
+    flex:1;background:transparent;border:0;outline:none;padding:8px 6px;color:inherit;font-size:15px;
+  }
+  .send{
+    background:linear-gradient(90deg,var(--accent),#3b82f6);border:0;padding:10px 14px;border-radius:10px;color:white;font-weight:700;
+    display:inline-flex;gap:8px;align-items:center;cursor:pointer;
+  }
+
+  .status{font-size:12px;color:var(--muted)}
+  .presence{
+    display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+    font-size:12px;color:var(--muted);
+  }
+  .presence .p-item{display:flex;gap:6px;align-items:center;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:8px}
+  .empty{opacity:0.6;text-align:center;padding:24px;color:var(--muted)}
+
+  /* Larger screens */
+  @media(min-width:720px){
+    .app{padding:20px}
+    header{padding:12px}
+    .messages{max-height:72vh}
+  }
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="Nexora Universal Chat">
+  <header>
+    <div class="brand" title="Nexora">
+      <div class="logo">N</div>
+      <div>
+        <div class="title">Nexora</div>
+        <div class="sub">Universal Room — public chat</div>
+      </div>
+    </div>
+
+    <div class="controls" id="topControls">
+      <div id="presenceArea" class="presence" aria-live="polite"><span class="status">Loading...</span></div>
+      <button class="btn" id="signBtn">Sign in with Google</button>
+    </div>
+  </header>
+
+  <main class="chat-wrap" id="mainChat">
+    <section class="messages" id="messages" aria-live="polite" aria-relevant="additions"></section>
+
+    <div class="composer" role="region" aria-label="Send message">
+      <input id="msgInput" type="text" placeholder="Say something nice... (press Enter to send)" autocomplete="off" />
+      <button class="send" id="sendBtn">Send</button>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);text-align:center;padding-top:6px;">
+      <span id="signedAs">Not signed in</span>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+/* ===========================
+   Nexora Single-file Chat
+   - Google sign-in
+   - Realtime Database universal room
+   - Presence tracking
+   - Last 100 messages, realtime updates
+   ===========================*/
+
+/* --- Firebase SDK imports (modular) --- */
+/* Using official CDN modules. No bundler required. */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-analytics.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getDatabase, ref, push, onChildAdded, serverTimestamp, set, onDisconnect, query, limitToLast, orderByChild } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+/* ====== Replace or use your config ======
+   The user provided config is used; change if needed.
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyBvgNUQsuKpqaO3trsGRXpDMGbhrM9Ngww",
+  authDomain: "nexora-aa2b5.firebaseapp.com",
+  databaseURL: "https://nexora-aa2b5-default-rtdb.firebaseio.com",
+  projectId: "nexora-aa2b5",
+  storageBucket: "nexora-aa2b5.firebasestorage.app",
+  messagingSenderId: "407144990207",
+  appId: "1:407144990207:web:0cdce728fba52feff7d3ca",
+  measurementId: "G-WS722V82KF"
+};
+
+/* Initialize Firebase */
+const app = initializeApp(firebaseConfig);
+try { getAnalytics(app); } catch(e){ /* analytics may not run on file:// */ }
+
+/* Initialize services */
+const auth = getAuth(app);
+const db = getDatabase(app);
+const provider = new GoogleAuthProvider();
+
+/* UI refs */
+const signBtn = document.getElementById('signBtn');
+const messagesEl = document.getElementById('messages');
+const msgInput = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const signedAs = document.getElementById('signedAs');
+const presenceArea = document.getElementById('presenceArea');
+
+/* App state */
+let currentUser = null;
+const ROOM_PATH = 'universal_room';
+const PRESENCE_PATH = 'presence';
+
+/* ---------- Helpers ---------- */
+function escapeHtml(str){
+  if(!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function niceTime(ts){
+  const date = ts ? new Date(ts) : new Date();
+  return date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+/* Append message element */
+function appendMessage(data, key){
+  const msg = data.val ? data.val() : data; // data may be snapshot or object
+  const uid = msg.uid || 'anon';
+  const name = escapeHtml(msg.name || 'Anonymous');
+  const text = escapeHtml(msg.text || '');
+  const photo = msg.photoURL || '';
+  const ts = msg.ts && typeof msg.ts === 'number' ? msg.ts : (msg.ts && msg.ts['.sv:timestamp'] ? msg.ts['.sv:timestamp'] : (msg.ts && msg.ts.toString ? Date.parse(msg.ts) : Date.now()));
+  const isMe = currentUser && uid === currentUser.uid;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg' + (isMe ? ' me' : '');
+  wrapper.title = name + ' · ' + niceTime(ts);
+
+  const avatar = document.createElement('img');
+  avatar.className = 'avatar';
+  avatar.src = photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&rounded=true`;
+  avatar.alt = name;
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const who = document.createElement('div');
+  who.className = 'who';
+  who.innerHTML = name + ' <span class="time">' + niceTime(ts) + '</span>';
+
+  const txt = document.createElement('div');
+  txt.className = 'txt';
+  txt.innerHTML = text;
+
+  meta.appendChild(who);
+  meta.appendChild(txt);
+
+  wrapper.appendChild(avatar);
+  wrapper.appendChild(meta);
+
+  messagesEl.appendChild(wrapper);
+  // Auto-scroll
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+/* ---------- Auth ---------- */
+signBtn.addEventListener('click', async () => {
+  if(currentUser){
+    // sign out
+    await signOut(auth);
+  } else {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(err){
+      alert('Sign-in failed: ' + (err.message || err));
+      console.error(err);
+    }
+  }
+});
+
+/* Send message */
+async function sendMessage(){
+  const text = msgInput.value.trim();
+  if(!text) return;
+  if(!currentUser){
+    alert('Sign in first (Google).');
+    return;
+  }
+  const msgRef = ref(db, ROOM_PATH);
+  // push message
+  await push(msgRef, {
+    uid: currentUser.uid,
+    name: currentUser.displayName || 'Anonymous',
+    photoURL: currentUser.photoURL || '',
+    text: text,
+    ts: serverTimestamp()
+  });
+  msgInput.value = '';
+}
+
+/* Bind send */
+sendBtn.addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+/* ---------- Presence ---------- */
+let presenceRef = null;
+function setPresence(user){
+  if(!user) return;
+  presenceRef = ref(db, `${PRESENCE_PATH}/${user.uid}`);
+  // set presence entry
+  set(presenceRef, {
+    name: user.displayName || 'Anonymous',
+    photoURL: user.photoURL || '',
+    lastSeen: serverTimestamp()
+  });
+  // ensure cleanup on disconnect
+  onDisconnect(presenceRef).remove().catch(()=>{ /* ignore */ });
+}
+
+/* Listen to presence list */
+function watchPresence(){
+  const pRef = ref(db, PRESENCE_PATH);
+  // we'll update presence area whenever a child is added/removed -> simpler read entire node on change
+  // For small rooms this is fine. For large scale, use pagination/limit.
+  const update = (snap) => {
+    // snap may be null if no children - we'll read entire node
+  };
+  // Simple approach: re-render presence by reading last state via onChildAdded/onChildRemoved
+  // We'll accumulate items from database via a small snapshot read (safe for tiny presence).
+  // Use orderByChild? Not necessary.
+  // We'll add a "listener" that re-renders presence by reading once and also updating on changes.
+  import('https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js').then(module=>{
+    const { onValue } = module;
+    onValue(pRef, (snapshot)=>{
+      const val = snapshot.val();
+      renderPresence(val || {});
+    });
+  });
+}
+function renderPresence(obj){
+  presenceArea.innerHTML = '';
+  const keys = Object.keys(obj);
+  if(keys.length === 0){
+    const span = document.createElement('span');
+    span.className = 'status';
+    span.textContent = 'No one online';
+    presenceArea.appendChild(span);
+    return;
+  }
+  keys.slice(0,10).forEach(k=>{
+    const person = obj[k];
+    const pi = document.createElement('div');
+    pi.className = 'p-item';
+    const img = document.createElement('img');
+    img.className = 'avatar';
+    img.style.width = '28px';
+    img.style.height = '28px';
+    img.src = person.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name||'U')}&background=7c3aed&color=fff&rounded=true`;
+    img.alt = person.name || 'User';
+    const nm = document.createElement('div');
+    nm.textContent = person.name || 'User';
+    nm.style.fontSize = '12px';
+    nm.style.fontWeight = '600';
+    pi.appendChild(img);
+    pi.appendChild(nm);
+    presenceArea.appendChild(pi);
+  });
+  const more = document.createElement('div');
+  more.style.fontSize='12px';
+  more.style.color='var(--muted)';
+  more.style.marginLeft='6px';
+  more.textContent = ` ${keys.length} online`;
+  presenceArea.appendChild(more);
+}
+
+/* ---------- Messages stream ---------- */
+function startMessagesStream(){
+  const roomRef = ref(db, ROOM_PATH);
+  const q = query(roomRef, limitToLast(100));
+  // listen for new messages
+  onChildAdded(q, (snapshot) => {
+    appendMessage(snapshot);
+  });
+}
+
+/* ---------- Auth state ---------- */
+onAuthStateChanged(auth, user => {
+  currentUser = user;
+  if(user){
+    signBtn.textContent = 'Sign out';
+    signedAs.textContent = 'Signed as ' + (user.displayName || user.email || user.uid);
+    // set presence
+    setPresence(user);
+    // watch presence
+    watchPresence();
+  } else {
+    signBtn.textContent = 'Sign in with Google';
+    signedAs.textContent = 'Not signed in';
+    presenceArea.innerHTML = '<span class="status">No one online</span>';
+  }
+});
+
+/* ---------- Initial load ---------- */
+startMessagesStream();
+
+/* Show a gentle welcome message if room empty -> optional */
+(function showWelcome(){
+  const introRef = ref(db, ROOM_PATH);
+  // We'll append a local-only welcome if no messages exist in UI after small delay
+  setTimeout(()=>{
+    if(messagesEl.children.length === 0){
+      const welcome = {
+        uid: 'system',
+        name: 'Nexora',
+        photoURL: '',
+        text: 'Welcome to the Universal Room — be kind, no spam. Sign in with Google to participate.',
+        ts: Date.now()
+      };
+      appendMessage(welcome, 'welcome');
+    }
+  }, 400);
+})();
+
+/* Safety note:
+   - This client uses Realtime Database directly. You must set secure rules in Firebase Console.
+   - Minimal example rules (Realtime DB) you can use (replace <your-project-id>):
+     {
+       "rules": {
+         "universal_room": {
+           ".read": true,
+           ".write": "auth != null"
+         },
+         "presence": {
+           ".read": true,
+           ".write": "auth != null"
+         }
+       }
+     }
+   BUT for better control consider:
+   - Rate limiting with Cloud Functions or validate message schema in rules.
+   - Disallow large payloads and sanitize content on server-side.
+*/
+</script>
+</body>
+</html>
